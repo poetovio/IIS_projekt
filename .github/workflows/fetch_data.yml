@@ -49,7 +49,14 @@ jobs:
 
       - name: Test Obsyd connection
         run: |
-          curl -I --connect-timeout 20 https://obsyd.dev/api/v1/zones
+          echo "Testing DNS resolution..."
+          getent hosts obsyd.dev
+
+          echo "Testing IPv4 connection..."
+          curl -4 -v --connect-timeout 20 https://obsyd.dev/api/v1/zones
+
+          echo "Testing HTTPS connection..."
+          curl -I -4 --connect-timeout 20 https://obsyd.dev/api/v1/zones
 
       - name: Run fetch script
         run: |
