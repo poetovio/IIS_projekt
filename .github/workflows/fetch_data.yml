@@ -76,6 +76,8 @@ jobs:
           uv run dvc push
 
       - name: Commit data changes
+        env:
+          GH_TOKEN: ${{ secrets.IIS_TOKEN }}
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
@@ -86,5 +88,5 @@ jobs:
             echo "No data changes"
           else
             git commit -m "Update energy data"
-            git push origin main
+            git push https://x-access-token:${GH_TOKEN}@github.com/poetovio/IIS_projekt.git main
           fi
