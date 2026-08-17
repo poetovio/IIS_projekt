@@ -37,6 +37,16 @@ jobs:
         run: |
           uv sync --frozen
 
+      - name: Setup DVC
+        uses: iterative/setup-dvc@v1
+
+      - name: Pull data from DagsHub
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_SECRET_KEY }}
+        run: |
+          uv run dvc pull
+
       - name: Run fetch script
         run: |
           uv run python src/data/fetch_energy_data.py
@@ -45,12 +55,23 @@ jobs:
         run: |
           uv run python src/data/preprocess_energy_data.py
 
-      - name: Commit data changes
+      - name: Track updated data with DVC
+        run: |
+          uv run dvc add data
+
+      - name: Push updated data to DagsHub
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_SECRET_KEY }}
+        run: |
+          uv run dvc push
+
+      - name: Commit updated DVC metadata
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
 
-          git add data
+          git add data.dvc
 
           if git diff --cached --quiet; then
             echo "No data changes"
