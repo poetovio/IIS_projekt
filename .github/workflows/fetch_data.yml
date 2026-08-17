@@ -29,56 +29,46 @@ jobs:
         run: |
           pipx install uv
 
+      - name: Setup DVC
+        uses: iterative/setup-dvc@v1
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install dependencies
-        run: |
-          uv sync --frozen
-
-      - name: Setup DVC
-        uses: iterative/setup-dvc@v1
-
-      - name: Pull data from DagsHub
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_SECRET_KEY }}
-        run: |
-          uv run dvc pull
-
-      - name: Test Obsyd connection
-        run: |
-          echo "Testing DNS resolution..."
-          getent hosts obsyd.dev
-
-          echo "Testing HTTPS connection..."
-          curl -4 -v --connect-timeout 20 https://obsyd.dev/api/v1/zones
-
-      - name: Reproduce DVC pipeline
-        run: |
-          uv run dvc repro
-
-      - name: Push data to DagsHub
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_ACCESS_KEY }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_SECRET_KEY }}
-        run: |
-          uv run dvc push
-
-      - name: Commit data changes
-        env:
-          GH_TOKEN: ${{ secrets.IIS_TOKEN }}
+      - name: Setup Git
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
 
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+
+      - name: DVC setup remote
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_SECRET_KEY }}
+        run: |
+          uv run dvc remote modify origin --local access_key_id "$AWS_ACCESS_KEY_ID"
+          uv run dvc remote modify origin --local secret_access_key "$AWS_SECRET_ACCESS_KEY"
+
+      - name: Run DVC pipeline
+        run: |
+          uv run dvc pull
+          uv run dvc status
+          uv run dvc repro
+          uv run dvc push
+
+      - name: Commit data changes
+        run: |
           git add dvc.lock
 
-          if git diff --cached --quiet; then
-            echo "No data changes"
-          else
-            git commit -m "Update energy data"
-            git push https://x-access-token:${GH_TOKEN}@github.com/poetovio/IIS_projekt.git main
-          fi
+          git commit -m "Update dvc.lock on $(date)" || true
+
+      - name: Push changes
+        env:
+          GH_TOKEN: ${{ secrets.IIS_TOKEN }}
+        run: |
+          git push https://x-access-token:${GH_TOKEN}@github.com/poetovio/IIS_projekt.git main
