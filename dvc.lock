@@ -1,0 +1,41 @@
+schema: '2.0'
+stages:
+  fetch:
+    cmd: uv run python src/data/fetch_energy_data.py
+    deps:
+    - path: src/data/fetch_energy_data.py
+      hash: md5
+      md5: d483d85d7d0d83d2ae852e7a08af62c1
+      size: 2319
+    params:
+      params.yaml:
+        fetch.series: price.dayahead
+        fetch.start_date: '2024-01-01'
+    outs:
+    - path: data/raw/electricity/prices
+      hash: md5
+      md5: cb7a1fe90c04c854d726311d7c9341ef.dir
+      size: 26892723
+      nfiles: 37
+  preprocess:
+    cmd: uv run python src/data/preprocess_energy_data.py
+    deps:
+    - path: data/raw/electricity/prices
+      hash: md5
+      md5: cb7a1fe90c04c854d726311d7c9341ef.dir
+      size: 26892723
+      nfiles: 37
+    - path: src/data/preprocess_energy_data.py
+      hash: md5
+      md5: a956e08cfd8ae9e86256a8fa7e9ce244
+      size: 1849
+    params:
+      params.yaml:
+        preprocess.input_directory: data/raw/electricity/prices
+        preprocess.output_directory: data/processed/electricity/prices
+    outs:
+    - path: data/processed/electricity/prices
+      hash: md5
+      md5: 09a89b131e464c885c3d64be9f5719b3.dir
+      size: 44628077
+      nfiles: 37

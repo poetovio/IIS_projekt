@@ -1,0 +1,7 @@
+fetch:
+  series: "price.dayahead"
+  start_date: "2024-01-01"
+
+preprocess:
+  input_directory: "data/raw/electricity/prices"
+  output_directory: "data/processed/electricity/prices"

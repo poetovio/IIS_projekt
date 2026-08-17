@@ -1,0 +1,24 @@
+stages:
+  fetch:
+    cmd: uv run python src/data/fetch_energy_data.py
+    deps:
+      - src/data/fetch_energy_data.py
+    params:
+      - fetch.series
+      - fetch.start_date
+    outs:
+      - data/raw/electricity/prices:
+          persist: true
+    always_changed: true
+
+  preprocess:
+    cmd: uv run python src/data/preprocess_energy_data.py
+    deps:
+      - src/data/preprocess_energy_data.py
+      - data/raw/electricity/prices
+    params:
+      - preprocess.input_directory
+      - preprocess.output_directory
+    outs:
+      - data/processed/electricity/prices:
+          persist: true

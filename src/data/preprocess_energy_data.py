@@ -1,15 +1,20 @@
 from pathlib import Path
 
 import pandas as pd
+import yaml
 
 
 def preprocess_energy_data():
+    params = yaml.safe_load(
+        open("params.yaml")
+    )["preprocess"]
+
     input_directory = Path(
-        "data/raw/electricity/prices"
+        params["input_directory"]
     )
 
     output_directory = Path(
-        "data/processed/electricity/prices"
+        params["output_directory"]
     )
 
     output_directory.mkdir(
