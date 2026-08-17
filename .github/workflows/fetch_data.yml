@@ -23,6 +23,7 @@ jobs:
         with:
           token: ${{ secrets.IIS_TOKEN }}
           fetch-depth: 0
+          persist-credentials: true
 
       - name: Install uv
         run: |
@@ -52,27 +53,18 @@ jobs:
           echo "Testing DNS resolution..."
           getent hosts obsyd.dev
 
-          echo "Testing IPv4 connection..."
+          echo "Testing HTTPS connection..."
           curl -4 -v --connect-timeout 20 https://obsyd.dev/api/v1/zones
 
-          echo "Testing HTTPS connection..."
-          curl -I -4 --connect-timeout 20 https://obsyd.dev/api/v1/zones
-
-      - name: Run fetch script
+      - name: Reproduce DVC pipeline
         run: |
-          uv run python src/data/fetch_energy_data.py
-
-      - name: Run pre-process script
-        run: |
-          uv run python src/data/preprocess_energy_data.py
+          uv run dvc repro
 
       - name: Push data to DagsHub
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_SECRET_KEY }}
         run: |
-          uv run dvc add data
-          git add data.dvc .gitignore
           uv run dvc push
 
       - name: Commit data changes
@@ -82,7 +74,7 @@ jobs:
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
 
-          git add data.dvc .gitignore
+          git add dvc.lock
 
           if git diff --cached --quiet; then
             echo "No data changes"
