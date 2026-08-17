@@ -47,6 +47,10 @@ jobs:
         run: |
           uv run dvc pull
 
+      - name: Test Obsyd connection
+        run: |
+          curl -I --connect-timeout 20 https://obsyd.dev/api/v1/zones
+
       - name: Run fetch script
         run: |
           uv run python src/data/fetch_energy_data.py
@@ -55,23 +59,21 @@ jobs:
         run: |
           uv run python src/data/preprocess_energy_data.py
 
-      - name: Track updated data with DVC
-        run: |
-          uv run dvc add data
-
-      - name: Push updated data to DagsHub
+      - name: Push data to DagsHub
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_ACCESS_KEY }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_SECRET_KEY }}
         run: |
+          uv run dvc add data
+          git add data.dvc .gitignore
           uv run dvc push
 
-      - name: Commit updated DVC metadata
+      - name: Commit data changes
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
 
-          git add data.dvc
+          git add data.dvc .gitignore
 
           if git diff --cached --quiet; then
             echo "No data changes"
