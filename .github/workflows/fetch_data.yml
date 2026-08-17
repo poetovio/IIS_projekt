@@ -1,0 +1,51 @@
+name: Fetch energy data on schedule
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * *"
+
+jobs:
+  fetch_energy:
+    name: Fetch and pre-process energy data
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.IIS_TOKEN }}
+          fetch-depth: 0
+
+      - name: Install uv
+        run: |
+          pipx install uv
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          uv sync --frozen
+
+      - name: Run fetch script
+        run: |
+          uv run python src/data/fetch_energy_data.py
+
+      - name: Run pre-process script
+        run: |
+          uv run python src/data/preprocess_energy_data.py
+
+      - name: Commit data changes
+        run: |
+          git config --local user.email "actions@github.com"
+          git config --local user.name "GitHub Actions"
+          git add data
+          git diff --cached --quiet || git commit -m "Update energy data"
+
+      - name: Push changes
+        uses: ad-m/github-push-action@master
+        with:
+          github_token: ${{ secrets.IIS_TOKEN }}
