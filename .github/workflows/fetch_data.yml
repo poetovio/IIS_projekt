@@ -1,14 +1,21 @@
-name: Fetch energy data on schedule
+name: Fetch energy data
 
 on:
   workflow_dispatch:
+
   schedule:
     - cron: "0 0 * * *"
+
+  push:
+    branches:
+      - main
 
 jobs:
   fetch_energy:
     name: Fetch and pre-process energy data
     runs-on: ubuntu-latest
+
+    if: github.actor != 'github-actions[bot]'
 
     steps:
       - name: Checkout repository
@@ -42,10 +49,12 @@ jobs:
         run: |
           git config --local user.email "actions@github.com"
           git config --local user.name "GitHub Actions"
-          git add data
-          git diff --cached --quiet || git commit -m "Update energy data"
 
-      - name: Push changes
-        uses: ad-m/github-push-action@master
-        with:
-          github_token: ${{ secrets.IIS_TOKEN }}
+          git add data
+
+          if git diff --cached --quiet; then
+            echo "No data changes"
+          else
+            git commit -m "Update energy data"
+            git push origin main
+          fi
