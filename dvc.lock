@@ -57,9 +57,9 @@ stages:
       size: 2173
     - path: gx/great_expectations.yml
       hash: md5
-      md5: 154fd705ba768b7255ef03efe7570d3e
-      size: 4474
+      md5: 2e21cdb8d0d02d9ab04ff555f2a5c6c9
+      size: 4495
     - path: src/data/validate_energy_data.py
       hash: md5
-      md5: 194e7150df1b7d87b77473724817fecb
-      size: 743
+      md5: b8b99bfb4d68dfa7b62b81a3850b2170
+      size: 2009
