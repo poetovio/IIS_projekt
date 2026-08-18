@@ -60,13 +60,26 @@ jobs:
           uv run dvc status
           uv run dvc repro
 
+      - name: Prepare Great Expectations report
+        run: |
+          rm -rf netlify-site
+          mkdir -p netlify-site
+
+          cp -r gx/uncommitted/data_docs/local_site/. netlify-site/
+
+          echo "Files to deploy:"
+          find netlify-site -type f | sort
+
+          echo "Number of files:"
+          find netlify-site -type f | wc -l
+
       - name: Deploy Great Expectations report
         uses: netlify/actions/cli@master
         env:
           NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
           NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
         with:
-          args: deploy --dir=gx/uncommitted/data_docs/local_site --prod --no-ignore
+          args: deploy --dir=netlify-site --prod
 
       - name: Push data to DagsHub
         run: |
