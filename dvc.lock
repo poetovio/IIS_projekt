@@ -61,5 +61,5 @@ stages:
       size: 4561
     - path: src/data/validate_energy_data.py
       hash: md5
-      md5: cd7d36077953fa7cb704e63bbea76b2d
-      size: 1353
+      md5: e704d6186b28cf72dfdc79bf12719083
+      size: 1559
