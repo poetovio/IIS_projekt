@@ -70,48 +70,44 @@ jobs:
           uv run dvc repro
           uv run dvc push
 
-      - name: Commit pipeline changes
+      - name: Verify Great Expectations report
         run: |
-          git add dvc.lock
-
-          if git diff --cached --quiet; then
-            echo "No pipeline changes"
-          else
-            git commit -m "Update pipeline outputs $(date -u)"
+          if [ ! -d "gx/uncommitted/data_docs/local_site" ]; then
+            echo "ERROR: Great Expectations report directory does not exist."
+            find gx -maxdepth 8 -type f | sort || true
+            exit 1
           fi
 
-      - name: Push changes
-        env:
-          GH_TOKEN: ${{ secrets.IIS_TOKEN }}
-        run: |
-          git push https://x-access-token:${GH_TOKEN}@github.com/poetovio/IIS_projekt.git HEAD:main
+          if [ ! -f "gx/uncommitted/data_docs/local_site/index.html" ]; then
+            echo "ERROR: Great Expectations index.html was not generated."
+            find gx/uncommitted/data_docs/local_site -maxdepth 8 -type f | sort || true
+            exit 1
+          fi
+
+          echo "Great Expectations report exists."
+          find gx/uncommitted/data_docs/local_site -type f | sort
+          echo "Number of files:"
+          find gx/uncommitted/data_docs/local_site -type f | wc -l
 
       - name: Prepare Netlify site
         run: |
           rm -rf site
           mkdir -p site/ge
 
-          echo "Copying Great Expectations report..."
-
           cp -r gx/uncommitted/data_docs/local_site/. site/ge/
-
-          echo "Great Expectations files:"
-          find site/ge -type f | sort
-
-          echo "Number of Great Expectations files:"
-          find site/ge -type f | wc -l
 
           cat > site/index.html <<'EOF'
           <!doctype html>
-          <html>
+          <html lang="en">
           <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>Data Reports</title>
+            <title>Energy Data Reports</title>
             <style>
               body {
                 font-family: Arial, sans-serif;
-                margin: 40px;
+                margin: 0;
+                padding: 40px;
                 background: #f5f5f5;
               }
 
@@ -121,20 +117,25 @@ jobs:
               }
 
               h1 {
-                margin-bottom: 20px;
+                margin-bottom: 10px;
+              }
+
+              .description {
+                color: #555;
+                margin-bottom: 30px;
               }
 
               .card {
                 background: white;
-                padding: 24px;
+                padding: 30px;
                 border-radius: 10px;
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
               }
 
-              a {
+              .button {
                 display: inline-block;
                 margin-top: 15px;
-                padding: 10px 16px;
+                padding: 12px 18px;
                 border-radius: 8px;
                 background: #0a66c2;
                 color: white;
@@ -142,24 +143,27 @@ jobs:
                 font-weight: bold;
               }
 
-              a:hover {
+              .button:hover {
                 background: #084f96;
               }
             </style>
           </head>
-
           <body>
             <div class="container">
-              <h1>Data Reports</h1>
+              <h1>Energy Data Reports</h1>
+
+              <p class="description">
+                Automated data quality reports for the electricity price data.
+              </p>
 
               <div class="card">
                 <h2>Great Expectations</h2>
+
                 <p>
-                  Automated data quality validation report for the
-                  electricity price data.
+                  View the latest Great Expectations validation report.
                 </p>
 
-                <a href="./ge/">
+                <a class="button" href="./ge/index.html">
                   Open Great Expectations Report
                 </a>
               </div>
@@ -168,22 +172,20 @@ jobs:
           </html>
           EOF
 
-      - name: Verify Netlify site
-        run: |
-          echo "Netlify site structure:"
           find site -type f | sort
-
-          echo ""
-          echo "Root index:"
-          test -f site/index.html
-
-          echo ""
-          echo "Great Expectations index:"
-          test -f site/ge/index.html
-
-          echo ""
           echo "Total files:"
           find site -type f | wc -l
+
+      - name: Verify Netlify site
+        run: |
+          test -f site/index.html
+          test -f site/ge/index.html
+
+          echo "Main index:"
+          ls -lh site/index.html
+
+          echo "Great Expectations index:"
+          ls -lh site/ge/index.html
 
       - name: Deploy to Netlify
         env:
@@ -194,3 +196,25 @@ jobs:
             --prod \
             --dir=site \
             --site="$NETLIFY_SITE_ID"
+
+      - name: Push data to DagsHub
+        run: |
+          uv run dvc push
+
+      - name: Commit pipeline changes
+        run: |
+          git add dvc.lock
+
+          if git diff --cached --quiet; then
+            echo "No pipeline changes."
+          else
+            git commit -m "Update pipeline outputs $(date -u)"
+          fi
+
+      - name: Push changes
+        env:
+          GH_TOKEN: ${{ secrets.IIS_TOKEN }}
+        run: |
+          git push \
+            https://x-access-token:${GH_TOKEN}@github.com/poetovio/IIS_projekt.git \
+            HEAD:main
