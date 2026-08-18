@@ -105,7 +105,7 @@ fluent_datasources:
     assets:
       energy_prices_by_zone:
         type: csv
-        batching_regex: processed/electricity/prices/.*\.csv
+        batching_regex: processed/electricity/prices/(?P<zone>[^/]+)\.csv
     base_directory: /home/urban/Documents/IIS/projekt/data
 notebooks:
 include_rendered_content:
