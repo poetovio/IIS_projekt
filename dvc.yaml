@@ -22,3 +22,12 @@ stages:
     outs:
       - data/processed/electricity/prices:
           persist: true
+
+  validate:
+    cmd: uv run python src/data/validate_energy_data.py
+    deps:
+      - data/processed/electricity/prices
+      - src/data/validate_energy_data.py
+      - gx/expectations/energy_prices_suite.json
+      - gx/great_expectations.yml
+      - gx/checkpoints/energy_prices_checkpoint.yml

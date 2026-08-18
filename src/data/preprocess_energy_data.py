@@ -1,20 +1,15 @@
 from pathlib import Path
 
 import pandas as pd
-import yaml
 
 
 def preprocess_energy_data():
-    params = yaml.safe_load(
-        open("params.yaml")
-    )["preprocess"]
-
     input_directory = Path(
-        params["input_directory"]
+        "data/raw/electricity/prices"
     )
 
     output_directory = Path(
-        params["output_directory"]
+        "data/processed/electricity/prices"
     )
 
     output_directory.mkdir(
@@ -25,22 +20,13 @@ def preprocess_energy_data():
     for input_file in input_directory.glob("*.csv"):
         output_file = output_directory / input_file.name
 
-        raw_df = pd.read_csv(
+        df = pd.read_csv(
             input_file,
             parse_dates=["datetime_utc"]
         )
 
-        if output_file.exists():
-            existing_df = pd.read_csv(
-                output_file,
-                parse_dates=["datetime_utc"]
-            )
-        else:
-            existing_df = pd.DataFrame()
-
-        df = pd.concat(
-            [existing_df, raw_df],
-            ignore_index=True
+        df = df.rename(
+            columns={"value": "price"}
         )
 
         df = df.drop_duplicates(
@@ -49,10 +35,6 @@ def preprocess_energy_data():
 
         df = df.sort_values(
             "datetime_utc"
-        )
-
-        df = df.rename(
-            columns={"value": "price"}
         )
 
         df["hour"] = df["datetime_utc"].dt.hour
