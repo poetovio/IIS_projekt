@@ -63,6 +63,12 @@ stages:
       hash: md5
       md5: b8b99bfb4d68dfa7b62b81a3850b2170
       size: 2009
+    outs:
+    - path: gx/uncommitted/data_docs/local_site
+      hash: md5
+      md5: 1b1e52aa0c4f11102e8cf4e8c6642e06.dir
+      size: 4499872
+      nfiles: 28
   test:
     cmd: uv run python src/tests/test_data.py
     deps:
@@ -85,4 +91,22 @@ stages:
       hash: md5
       md5: f4c3ba612fbf8badba32b2bd385324df.dir
       size: 150581642
+      nfiles: 37
+  test_data:
+    cmd: uv run python src/tests/test_data.py
+    deps:
+    - path: data/processed/electricity/prices
+      hash: md5
+      md5: 38acc49edbc8570cf1f1a99cb68c7919.dir
+      size: 43882515
+      nfiles: 37
+    - path: src/tests/test_data.py
+      hash: md5
+      md5: 5bbacdeef2cb6af031434acad94856ab
+      size: 3483
+    outs:
+    - path: data/reference/electricity/prices
+      hash: md5
+      md5: 38acc49edbc8570cf1f1a99cb68c7919.dir
+      size: 43882515
       nfiles: 37

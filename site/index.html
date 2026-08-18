@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Energy Data Reports</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 40px;
+      background: #f5f5f5;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+    }
+
+    .description {
+      color: #555;
+      margin-bottom: 30px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: white;
+      padding: 30px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+    }
+
+    .button {
+      display: inline-block;
+      margin-top: 15px;
+      padding: 12px 18px;
+      border-radius: 8px;
+      background: #0a66c2;
+      color: white;
+      text-decoration: none;
+      font-weight: bold;
+    }
+
+    .button:hover {
+      background: #084f96;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Energy Data Reports</h1>
+
+    <p class="description">
+      Automated quality and data drift reports for electricity price data.
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <h2>Great Expectations</h2>
+
+        <p>
+          Validation of the structure and quality of the processed
+          electricity price data.
+        </p>
+
+        <a class="button" href="./ge/index.html">
+          Open Great Expectations
+        </a>
+      </div>
+
+      <div class="card">
+        <h2>Evidently</h2>
+
+        <p>
+          Data drift and statistical testing reports for all
+          electricity price zones.
+        </p>
+
+        <a class="button" href="./evidently/index.html">
+          Open Evidently Reports
+        </a>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -12,7 +12,7 @@ on:
 
 jobs:
   fetch_energy:
-    name: Fetch and pre-process energy data
+    name: Fetch, validate and test energy data
     runs-on: ubuntu-latest
 
     if: github.actor != 'github-actions[bot]'
@@ -31,8 +31,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install uv
-        run: |
-          pipx install uv
+        run: pipx install uv
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -40,8 +39,7 @@ jobs:
           node-version: "20"
 
       - name: Install Netlify CLI
-        run: |
-          npm install -g netlify-cli
+        run: npm install -g netlify-cli
 
       - name: Setup DVC
         uses: iterative/setup-dvc@v1
@@ -52,8 +50,7 @@ jobs:
           git config --local user.name "GitHub Actions"
 
       - name: Install dependencies
-        run: |
-          uv sync --frozen
+        run: uv sync --frozen
 
       - name: DVC setup remote
         env:
@@ -63,38 +60,46 @@ jobs:
           uv run dvc remote modify origin --local access_key_id "$AWS_ACCESS_KEY_ID"
           uv run dvc remote modify origin --local secret_access_key "$AWS_SECRET_ACCESS_KEY"
 
-      - name: Run DVC pipeline
+      - name: Pull data
         run: |
           uv run dvc pull
-          uv run dvc status
+
+      - name: Run DVC pipeline
+        run: |
           uv run dvc repro
-          uv run dvc push
 
       - name: Verify Great Expectations report
         run: |
-          if [ ! -d "gx/uncommitted/data_docs/local_site" ]; then
-            echo "ERROR: Great Expectations report directory does not exist."
-            find gx -maxdepth 8 -type f | sort || true
+          test -f gx/uncommitted/data_docs/local_site/index.html
+
+          echo "Great Expectations report found."
+
+      - name: Run Evidently tests
+        run: |
+          uv run python src/tests/test_data.py
+
+      - name: Verify Evidently reports
+        run: |
+          test -d reports/data_testing/electricity
+
+          COUNT=$(find reports/data_testing/electricity -name "*.html" | wc -l)
+
+          echo "Evidently reports: $COUNT"
+
+          if [ "$COUNT" -ne 37 ]; then
+            echo "ERROR: Expected 37 Evidently reports."
             exit 1
           fi
-
-          if [ ! -f "gx/uncommitted/data_docs/local_site/index.html" ]; then
-            echo "ERROR: Great Expectations index.html was not generated."
-            find gx/uncommitted/data_docs/local_site -maxdepth 8 -type f | sort || true
-            exit 1
-          fi
-
-          echo "Great Expectations report exists."
-          find gx/uncommitted/data_docs/local_site -type f | sort
-          echo "Number of files:"
-          find gx/uncommitted/data_docs/local_site -type f | wc -l
 
       - name: Prepare Netlify site
         run: |
           rm -rf site
+
           mkdir -p site/ge
+          mkdir -p site/evidently
 
           cp -r gx/uncommitted/data_docs/local_site/. site/ge/
+          cp -r reports/data_testing/electricity/. site/evidently/
 
           cat > site/index.html <<'EOF'
           <!doctype html>
@@ -112,7 +117,7 @@ jobs:
               }
 
               .container {
-                max-width: 800px;
+                max-width: 900px;
                 margin: 0 auto;
               }
 
@@ -123,6 +128,12 @@ jobs:
               .description {
                 color: #555;
                 margin-bottom: 30px;
+              }
+
+              .grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                gap: 20px;
               }
 
               .card {
@@ -153,26 +164,131 @@ jobs:
               <h1>Energy Data Reports</h1>
 
               <p class="description">
-                Automated data quality reports for the electricity price data.
+                Automated quality and data drift reports for electricity price data.
               </p>
 
-              <div class="card">
-                <h2>Great Expectations</h2>
+              <div class="grid">
+                <div class="card">
+                  <h2>Great Expectations</h2>
 
-                <p>
-                  View the latest Great Expectations validation report.
-                </p>
+                  <p>
+                    Validation of the structure and quality of the processed
+                    electricity price data.
+                  </p>
 
-                <a class="button" href="./ge/index.html">
-                  Open Great Expectations Report
-                </a>
+                  <a class="button" href="./ge/index.html">
+                    Open Great Expectations
+                  </a>
+                </div>
+
+                <div class="card">
+                  <h2>Evidently</h2>
+
+                  <p>
+                    Data drift and statistical testing reports for all
+                    electricity price zones.
+                  </p>
+
+                  <a class="button" href="./evidently/index.html">
+                    Open Evidently Reports
+                  </a>
+                </div>
               </div>
             </div>
           </body>
           </html>
           EOF
 
+          cat > site/evidently/index.html <<'EOF'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Evidently Energy Reports</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                margin: 0;
+                padding: 40px;
+                background: #f5f5f5;
+              }
+
+              .container {
+                max-width: 1000px;
+                margin: 0 auto;
+              }
+
+              h1 {
+                margin-bottom: 10px;
+              }
+
+              .description {
+                color: #555;
+                margin-bottom: 30px;
+              }
+
+              .grid {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 12px;
+              }
+
+              .button {
+                display: inline-block;
+                padding: 10px 16px;
+                border-radius: 8px;
+                background: #0a66c2;
+                color: white;
+                text-decoration: none;
+                font-weight: bold;
+              }
+
+              .button:hover {
+                background: #084f96;
+              }
+
+              .back {
+                display: inline-block;
+                margin-bottom: 20px;
+                text-decoration: none;
+                color: #0a66c2;
+                font-weight: bold;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <a class="back" href="../">← Back to Reports</a>
+
+              <h1>Evidently Reports</h1>
+
+              <p class="description">
+                Data drift reports for electricity price zones.
+              </p>
+
+              <div class="grid">
+          EOF
+
+          for file in site/evidently/*.html; do
+            name=$(basename "$file")
+
+            if [ "$name" != "index.html" ]; then
+              zone="${name%.html}"
+              echo "                <a class=\"button\" href=\"./$name\">$zone</a>" >> site/evidently/index.html
+            fi
+          done
+
+          cat >> site/evidently/index.html <<'EOF'
+              </div>
+            </div>
+          </body>
+          </html>
+          EOF
+
+          echo "Site files:"
           find site -type f | sort
+
           echo "Total files:"
           find site -type f | wc -l
 
@@ -180,12 +296,16 @@ jobs:
         run: |
           test -f site/index.html
           test -f site/ge/index.html
+          test -f site/evidently/index.html
 
-          echo "Main index:"
+          echo "Main page:"
           ls -lh site/index.html
 
-          echo "Great Expectations index:"
+          echo "Great Expectations:"
           ls -lh site/ge/index.html
+
+          echo "Evidently:"
+          ls -lh site/evidently/index.html
 
       - name: Deploy to Netlify
         env:
