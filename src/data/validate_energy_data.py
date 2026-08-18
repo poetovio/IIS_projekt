@@ -24,6 +24,20 @@ def main():
 
     context.build_data_docs()
 
+    report_path = (
+        gx_root
+        / "uncommitted"
+        / "data_docs"
+        / "local_site"
+        / "index.html"
+    )
+
+    if not report_path.exists():
+        print(f"ERROR: Report was not generated: {report_path}")
+        return False
+
+    print(f"Great Expectations report generated: {report_path}")
+
     if checkpoint_result["success"]:
         print("Validation passed for energy prices!")
         return True
