@@ -25,17 +25,26 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Install uv
-        run: |
-          pipx install uv
-
-      - name: Setup DVC
-        uses: iterative/setup-dvc@v1
-
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Install uv
+        run: |
+          pipx install uv
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Netlify CLI
+        run: |
+          npm install -g netlify-cli
+
+      - name: Setup DVC
+        uses: iterative/setup-dvc@v1
 
       - name: Setup Git
         run: |
@@ -59,44 +68,129 @@ jobs:
           uv run dvc pull
           uv run dvc status
           uv run dvc repro
-
-      - name: Prepare Great Expectations report
-        run: |
-          rm -rf netlify-site
-          mkdir -p netlify-site
-
-          cp -r gx/uncommitted/data_docs/local_site/. netlify-site/
-
-          echo "Files to deploy:"
-          find netlify-site -type f | sort
-
-          echo "Number of files:"
-          find netlify-site -type f | wc -l
-
-      - name: Deploy Great Expectations report
-        uses: netlify/actions/cli@master
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
-        with:
-          args: deploy --dir=netlify-site --prod
-
-      - name: Push data to DagsHub
-        run: |
           uv run dvc push
 
-      - name: Commit data changes
+      - name: Commit pipeline changes
         run: |
           git add dvc.lock
 
           if git diff --cached --quiet; then
-            echo "No data changes"
+            echo "No pipeline changes"
           else
-            git commit -m "Update dvc.lock on $(date)"
+            git commit -m "Update pipeline outputs $(date -u)"
           fi
 
       - name: Push changes
         env:
           GH_TOKEN: ${{ secrets.IIS_TOKEN }}
         run: |
-          git push https://x-access-token:${GH_TOKEN}@github.com/poetovio/IIS_projekt.git main
+          git push https://x-access-token:${GH_TOKEN}@github.com/poetovio/IIS_projekt.git HEAD:main
+
+      - name: Prepare Netlify site
+        run: |
+          rm -rf site
+          mkdir -p site/ge
+
+          echo "Copying Great Expectations report..."
+
+          cp -r gx/uncommitted/data_docs/local_site/. site/ge/
+
+          echo "Great Expectations files:"
+          find site/ge -type f | sort
+
+          echo "Number of Great Expectations files:"
+          find site/ge -type f | wc -l
+
+          cat > site/index.html <<'EOF'
+          <!doctype html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <title>Data Reports</title>
+            <style>
+              body {
+                font-family: Arial, sans-serif;
+                margin: 40px;
+                background: #f5f5f5;
+              }
+
+              .container {
+                max-width: 800px;
+                margin: 0 auto;
+              }
+
+              h1 {
+                margin-bottom: 20px;
+              }
+
+              .card {
+                background: white;
+                padding: 24px;
+                border-radius: 10px;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+              }
+
+              a {
+                display: inline-block;
+                margin-top: 15px;
+                padding: 10px 16px;
+                border-radius: 8px;
+                background: #0a66c2;
+                color: white;
+                text-decoration: none;
+                font-weight: bold;
+              }
+
+              a:hover {
+                background: #084f96;
+              }
+            </style>
+          </head>
+
+          <body>
+            <div class="container">
+              <h1>Data Reports</h1>
+
+              <div class="card">
+                <h2>Great Expectations</h2>
+                <p>
+                  Automated data quality validation report for the
+                  electricity price data.
+                </p>
+
+                <a href="./ge/">
+                  Open Great Expectations Report
+                </a>
+              </div>
+            </div>
+          </body>
+          </html>
+          EOF
+
+      - name: Verify Netlify site
+        run: |
+          echo "Netlify site structure:"
+          find site -type f | sort
+
+          echo ""
+          echo "Root index:"
+          test -f site/index.html
+
+          echo ""
+          echo "Great Expectations index:"
+          test -f site/ge/index.html
+
+          echo ""
+          echo "Total files:"
+          find site -type f | wc -l
+
+      - name: Deploy to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        run: |
+          netlify deploy \
+            --prod \
+            --dir=site \
+            --site="$NETLIFY_SITE_ID"
