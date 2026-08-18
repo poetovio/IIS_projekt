@@ -14,16 +14,16 @@ stages:
     outs:
     - path: data/raw/electricity/prices
       hash: md5
-      md5: cb7a1fe90c04c854d726311d7c9341ef.dir
-      size: 26892723
+      md5: 31237853cea79b0bf29a2c258096309b.dir
+      size: 26919794
       nfiles: 37
   preprocess:
     cmd: uv run python src/data/preprocess_energy_data.py
     deps:
     - path: data/raw/electricity/prices
       hash: md5
-      md5: cb7a1fe90c04c854d726311d7c9341ef.dir
-      size: 26892723
+      md5: 31237853cea79b0bf29a2c258096309b.dir
+      size: 26919794
       nfiles: 37
     - path: src/data/preprocess_energy_data.py
       hash: md5
@@ -36,6 +36,6 @@ stages:
     outs:
     - path: data/processed/electricity/prices
       hash: md5
-      md5: 09a89b131e464c885c3d64be9f5719b3.dir
-      size: 44628077
+      md5: a62acddd524585f8448539fe97edfdc4.dir
+      size: 44663190
       nfiles: 37
