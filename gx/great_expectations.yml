@@ -103,13 +103,10 @@ fluent_datasources:
   energy_prices:
     type: pandas_filesystem
     assets:
-      energy_prices_data:
-        type: csv
-        batching_regex: processed/electricity/prices/.*\.csv
       energy_prices_by_zone:
         type: csv
-        batching_regex: processed/electricity/prices/(?P<zone>[^/]+)\.csv
-    base_directory: ../data
+        batching_regex: processed/electricity/prices/.*\.csv
+    base_directory: /home/urban/Documents/IIS/projekt/data
 notebooks:
 include_rendered_content:
   globally: false

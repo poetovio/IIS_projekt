@@ -53,13 +53,13 @@ stages:
       size: 781
     - path: gx/expectations/energy_prices_suite.json
       hash: md5
-      md5: e81d55d6cf4d29a0b2bdcdc8be1c8d4d
-      size: 1974
+      md5: 5d2442a15eef35cce75306f710d603c6
+      size: 2173
     - path: gx/great_expectations.yml
       hash: md5
-      md5: f7b2ffc477aef11ce5c110133a722a44
-      size: 4561
+      md5: 154fd705ba768b7255ef03efe7570d3e
+      size: 4474
     - path: src/data/validate_energy_data.py
       hash: md5
-      md5: 0fbac3d4676c48278bebcd95626c636c
-      size: 1319
+      md5: 194e7150df1b7d87b77473724817fecb
+      size: 743
