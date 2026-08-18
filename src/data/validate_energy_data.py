@@ -13,7 +13,6 @@ def validate_energy_data():
     project_root = Path(__file__).resolve().parents[2]
     gx_directory = project_root / "gx"
 
-    # GX config uporablja relativne poti glede na gx direktorij.
     os.chdir(gx_directory)
 
     context = gx.get_context(
@@ -47,15 +46,10 @@ def validate_energy_data():
 
     result = validator.validate()
 
-    # Generate Great Expectations Data Docs.
     context.build_data_docs()
 
     if result["success"]:
         print("Energy data validation successful.")
-        print(
-            "Great Expectations report generated in "
-            "gx/uncommitted/data_docs/local_site/"
-        )
         return True
 
     print("Energy data validation failed.")

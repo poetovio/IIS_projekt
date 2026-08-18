@@ -14,16 +14,16 @@ stages:
     outs:
     - path: data/raw/electricity/prices
       hash: md5
-      md5: 825b628960b369ba1ea56f5b2c22d0e7.dir
-      size: 26922199
+      md5: 8e4066a221b18e6dbc569617deb7315a.dir
+      size: 26948877
       nfiles: 37
   preprocess:
     cmd: uv run python src/data/preprocess_energy_data.py
     deps:
     - path: data/raw/electricity/prices
       hash: md5
-      md5: 825b628960b369ba1ea56f5b2c22d0e7.dir
-      size: 26922199
+      md5: 8e4066a221b18e6dbc569617deb7315a.dir
+      size: 26948877
       nfiles: 37
     - path: src/data/preprocess_energy_data.py
       hash: md5
@@ -36,16 +36,16 @@ stages:
     outs:
     - path: data/processed/electricity/prices
       hash: md5
-      md5: c3deeb670b6dd90cd2e70173c15c04f8.dir
-      size: 43839082
+      md5: d5a55e742047afc8f5d88fe61614ea3b.dir
+      size: 43882463
       nfiles: 37
   validate:
     cmd: uv run python src/data/validate_energy_data.py
     deps:
     - path: data/processed/electricity/prices
       hash: md5
-      md5: c3deeb670b6dd90cd2e70173c15c04f8.dir
-      size: 43839082
+      md5: d5a55e742047afc8f5d88fe61614ea3b.dir
+      size: 43882463
       nfiles: 37
     - path: gx/checkpoints/energy_prices_checkpoint.yml
       hash: md5
@@ -61,5 +61,5 @@ stages:
       size: 4561
     - path: src/data/validate_energy_data.py
       hash: md5
-      md5: e704d6186b28cf72dfdc79bf12719083
-      size: 1559
+      md5: 0fbac3d4676c48278bebcd95626c636c
+      size: 1319
