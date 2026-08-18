@@ -47,8 +47,15 @@ def validate_energy_data():
 
     result = validator.validate()
 
+    # Generate Great Expectations Data Docs.
+    context.build_data_docs()
+
     if result["success"]:
         print("Energy data validation successful.")
+        print(
+            "Great Expectations report generated in "
+            "gx/uncommitted/data_docs/local_site/"
+        )
         return True
 
     print("Energy data validation failed.")

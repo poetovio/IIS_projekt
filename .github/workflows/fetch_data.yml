@@ -59,13 +59,28 @@ jobs:
           uv run dvc pull
           uv run dvc status
           uv run dvc repro
+
+      - name: Deploy Great Expectations report
+        uses: netlify/actions/cli@master
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+        with:
+          args: deploy --dir=gx/uncommitted/data_docs/local_site --prod
+
+      - name: Push data to DagsHub
+        run: |
           uv run dvc push
 
       - name: Commit data changes
         run: |
           git add dvc.lock
 
-          git commit -m "Update dvc.lock on $(date)" || true
+          if git diff --cached --quiet; then
+            echo "No data changes"
+          else
+            git commit -m "Update dvc.lock on $(date)"
+          fi
 
       - name: Push changes
         env:
