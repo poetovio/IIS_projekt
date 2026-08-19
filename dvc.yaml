@@ -53,6 +53,7 @@ stages:
       - train.train_ratio
       - train.epochs
       - train.batch_size
+      - train.random_state
     outs:
       - models:
           persist: true
