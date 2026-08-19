@@ -1,9 +1,7 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
-
 	const API_URL = 'http://127.0.0.1:8000';
 
-	let zones = [
+	let zones = $state([
 		'AT',
 		'BE',
 		'BG',
@@ -43,12 +41,12 @@
 		'SE4',
 		'SI',
 		'SK'
-	];
+	]);
 
-	let selectedZone = 'SI';
-	let predicting = false;
-	let prediction: any = null;
-	let error = '';
+	let selectedZone = $state('SI');
+	let predicting = $state(false);
+	let prediction = $state<any>(null);
+	let error = $state('');
 
 	async function predictRegression() {
 		predicting = true;
@@ -102,17 +100,16 @@
 				);
 			}
 
-			prediction = await response.json();
+			const result = await response.json();
+
+			console.log('REGRESSION RESULT:', result);
+
+			prediction = result;
 		} catch (err) {
-			if (err instanceof TypeError) {
-				error =
-					'Unable to connect to the prediction API. Make sure the API is running on port 8000.';
-			} else {
-				error =
-					err instanceof Error
-						? err.message
-						: 'Unable to generate prediction.';
-			}
+			error =
+				err instanceof Error
+					? err.message
+					: 'Unable to generate prediction.';
 		} finally {
 			predicting = false;
 		}
@@ -268,7 +265,7 @@
 					PREDICTION
 				</div>
 
-				{#if prediction}
+				{#if prediction !== null}
 					<div class="mt-6">
 						<div class="text-sm text-slate-500">
 							{prediction.zone} · LSTM Regression
@@ -282,20 +279,6 @@
 							<span class="mb-2 text-lg text-slate-400">
 								EUR/MWh
 							</span>
-						</div>
-
-						<div
-							class="mt-6 rounded-xl border border-white/10 bg-black/20 p-4"
-						>
-							<div class="text-xs text-slate-500">
-								PREDICTION ID
-							</div>
-
-							<div
-								class="mt-2 break-all font-mono text-xs text-slate-400"
-							>
-								{prediction.prediction_id}
-							</div>
 						</div>
 					</div>
 				{:else}
