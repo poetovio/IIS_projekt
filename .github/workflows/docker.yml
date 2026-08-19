@@ -23,10 +23,10 @@ jobs:
       - name: Install dependencies
         run: uv sync --frozen --no-dev
 
-      - name: Pull DVC data
+            - name: Pull DVC data
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_USERNAME }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_TOKEN }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_ACCESS_KEY }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_SECRET_KEY }}
         run: uv run dvc pull
 
       - name: Check models
