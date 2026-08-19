@@ -46,14 +46,12 @@ stages:
     deps:
       - src/train.py
       - data/processed/electricity/prices
-      - gx/uncommitted
       - data/reference/electricity/prices
     params:
-      - train.window_size
-      - train.train_ratio
-      - train.epochs
-      - train.batch_size
+      - train.test_size
       - train.random_state
+      - train.window_size
+      - train.target_col
     outs:
       - models:
           persist: true
