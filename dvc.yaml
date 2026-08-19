@@ -31,9 +31,6 @@ stages:
       - gx/expectations/energy_prices_suite.json
       - gx/great_expectations.yml
       - gx/checkpoints/energy_prices_checkpoint.yml
-    outs:
-      - gx/uncommitted/data_docs/local_site:
-          persist: true
 
   test_data:
     cmd: uv run python src/tests/test_data.py
@@ -42,4 +39,20 @@ stages:
       - src/tests/test_data.py
     outs:
       - data/reference/electricity/prices:
+          persist: true
+
+  train:
+    cmd: uv run python src/train.py
+    deps:
+      - src/train.py
+      - data/processed/electricity/prices
+      - gx/uncommitted
+      - data/reference/electricity/prices
+    params:
+      - train.window_size
+      - train.train_ratio
+      - train.epochs
+      - train.batch_size
+    outs:
+      - models:
           persist: true

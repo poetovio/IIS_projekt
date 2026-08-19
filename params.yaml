@@ -5,3 +5,9 @@ fetch:
 preprocess:
   input_directory: "data/raw/electricity/prices"
   output_directory: "data/processed/electricity/prices"
+
+train:
+  window_size: 24
+  train_ratio: 0.8
+  epochs: 50
+  batch_size: 64
