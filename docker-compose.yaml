@@ -1,0 +1,7 @@
+services:
+  energy-api:
+    image: poetovio/iis_projekt:latest
+    container_name: energy-intelligence-api
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
