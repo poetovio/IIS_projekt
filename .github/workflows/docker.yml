@@ -14,6 +14,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      - name: Set up Python
+        run: uv python install 3.12
+
+      - name: Install dependencies
+        run: uv sync --frozen --no-dev
+
+      - name: Pull DVC models
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.DAGSHUB_USERNAME }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.DAGSHUB_TOKEN }}
+        run: uv run dvc pull models
+
+      - name: Check models
+        run: |
+          echo "Models:"
+          find models -type f | sort
+
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
