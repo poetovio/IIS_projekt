@@ -85,6 +85,15 @@ class ClassificationInput(BaseModel):
     year: int
     is_weekend: bool
 
+class RegressionEvaluationInput(BaseModel):
+    prediction_id: str
+    actual_value: float
+
+
+class ClassificationEvaluationInput(BaseModel):
+    prediction_id: str
+    actual_class: str
+
 
 def get_available_zones():
     regression_zones = {
@@ -235,9 +244,33 @@ def init_monitoring_database():
         """
     )
 
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS evaluations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            prediction_id TEXT NOT NULL,
+            model_type TEXT NOT NULL,
+            zone TEXT NOT NULL,
+            predicted_value REAL,
+            actual_value REAL,
+            error REAL,
+            absolute_error REAL,
+            squared_error REAL,
+            predicted_class TEXT,
+            actual_class TEXT,
+            is_correct INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+
     connection.commit()
     connection.close()
 
+def get_db_connection():
+    connection = sqlite3.connect(MONITORING_DATABASE)
+    connection.row_factory = sqlite3.Row
+    return connection
 
 def save_prediction(
     prediction_id,
@@ -297,6 +330,12 @@ def root():
             "/models/{zone}",
             "/predict/regression/{zone}",
             "/predict/classification/{zone}",
+            "/admin/metrics",
+            "/admin/predictions",
+            "/admin/evaluations",
+            "/admin/models",
+            "/admin/evaluate/regression",
+            "/admin/evaluate/classification",
         ],
     }
 
@@ -643,4 +682,325 @@ def get_latest_data(zone: str):
         ].to_dict(
             orient="records"
         ),
+    }
+
+@app.post("/admin/evaluate/regression")
+def evaluate_regression(request: RegressionEvaluationInput):
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT prediction_id, zone, prediction
+        FROM predictions
+        WHERE prediction_id = ?
+        AND model_type = 'regression'
+        """,
+        (request.prediction_id,),
+    )
+
+    prediction = cursor.fetchone()
+
+    if prediction is None:
+        connection.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Regression prediction not found.",
+        )
+
+    predicted_value = float(prediction["prediction"])
+    actual_value = float(request.actual_value)
+    error = predicted_value - actual_value
+    absolute_error = abs(error)
+    squared_error = error ** 2
+
+    cursor.execute(
+        """
+        INSERT INTO evaluations (
+            prediction_id,
+            model_type,
+            zone,
+            predicted_value,
+            actual_value,
+            error,
+            absolute_error,
+            squared_error
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            prediction["prediction_id"],
+            "regression",
+            prediction["zone"],
+            predicted_value,
+            actual_value,
+            error,
+            absolute_error,
+            squared_error,
+        ),
+    )
+
+    connection.commit()
+    connection.close()
+
+    return {
+        "prediction_id": prediction["prediction_id"],
+        "zone": prediction["zone"],
+        "model_type": "regression",
+        "predicted_value": predicted_value,
+        "actual_value": actual_value,
+        "error": error,
+        "absolute_error": absolute_error,
+    }
+
+
+@app.post("/admin/evaluate/classification")
+def evaluate_classification(request: ClassificationEvaluationInput):
+    actual_class = request.actual_class.upper()
+
+    if actual_class not in CLASS_NAMES:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "message": "Invalid actual class.",
+                "allowed_classes": CLASS_NAMES,
+            },
+        )
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT prediction_id, zone, prediction_class
+        FROM predictions
+        WHERE prediction_id = ?
+        AND model_type = 'classification'
+        """,
+        (request.prediction_id,),
+    )
+
+    prediction = cursor.fetchone()
+
+    if prediction is None:
+        connection.close()
+        raise HTTPException(
+            status_code=404,
+            detail="Classification prediction not found.",
+        )
+
+    predicted_class = prediction["prediction_class"]
+    is_correct = int(predicted_class == actual_class)
+
+    cursor.execute(
+        """
+        INSERT INTO evaluations (
+            prediction_id,
+            model_type,
+            zone,
+            predicted_class,
+            actual_class,
+            is_correct
+        )
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (
+            prediction["prediction_id"],
+            "classification",
+            prediction["zone"],
+            predicted_class,
+            actual_class,
+            is_correct,
+        ),
+    )
+
+    connection.commit()
+    connection.close()
+
+    return {
+        "prediction_id": prediction["prediction_id"],
+        "zone": prediction["zone"],
+        "model_type": "classification",
+        "predicted_class": predicted_class,
+        "actual_class": actual_class,
+        "correct": bool(is_correct),
+    }
+
+
+@app.get("/admin/metrics")
+def admin_metrics():
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT
+            COUNT(*) AS count,
+            AVG(absolute_error) AS mae,
+            AVG(squared_error) AS mse
+        FROM evaluations
+        WHERE model_type = 'regression'
+        """
+    )
+    regression = cursor.fetchone()
+
+    cursor.execute(
+        """
+        SELECT
+            COUNT(*) AS count,
+            AVG(is_correct) AS accuracy
+        FROM evaluations
+        WHERE model_type = 'classification'
+        """
+    )
+    classification = cursor.fetchone()
+
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM predictions
+        """
+    )
+    predictions_total = cursor.fetchone()["total"]
+
+    cursor.execute(
+        """
+        SELECT model_type, COUNT(*) AS count
+        FROM predictions
+        GROUP BY model_type
+        """
+    )
+    prediction_counts = {
+        row["model_type"]: row["count"]
+        for row in cursor.fetchall()
+    }
+
+    cursor.execute(
+        """
+        SELECT zone, COUNT(*) AS count
+        FROM predictions
+        GROUP BY zone
+        ORDER BY count DESC
+        """
+    )
+    predictions_by_zone = {
+        row["zone"]: row["count"]
+        for row in cursor.fetchall()
+    }
+
+    connection.close()
+
+    regression_mae = (
+        float(regression["mae"])
+        if regression["mae"] is not None
+        else None
+    )
+    regression_mse = (
+        float(regression["mse"])
+        if regression["mse"] is not None
+        else None
+    )
+    regression_rmse = (
+        float(regression_mse ** 0.5)
+        if regression_mse is not None
+        else None
+    )
+    classification_accuracy = (
+        float(classification["accuracy"])
+        if classification["accuracy"] is not None
+        else None
+    )
+
+    return {
+        "predictions": {
+            "total": predictions_total,
+            "regression": prediction_counts.get("regression", 0),
+            "classification": prediction_counts.get("classification", 0),
+            "by_zone": predictions_by_zone,
+        },
+        "regression": {
+            "evaluated_predictions": regression["count"],
+            "mae": regression_mae,
+            "rmse": regression_rmse,
+        },
+        "classification": {
+            "evaluated_predictions": classification["count"],
+            "accuracy": classification_accuracy,
+        },
+    }
+
+
+@app.get("/admin/predictions")
+def admin_predictions(limit: int = 50):
+    limit = max(1, min(limit, 1000))
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM predictions
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+
+    rows = [dict(row) for row in cursor.fetchall()]
+    connection.close()
+
+    return {
+        "predictions": rows,
+        "count": len(rows),
+    }
+
+
+@app.get("/admin/evaluations")
+def admin_evaluations(limit: int = 100):
+    limit = max(1, min(limit, 1000))
+
+    connection = get_db_connection()
+    cursor = connection.cursor()
+
+    cursor.execute(
+        """
+        SELECT *
+        FROM evaluations
+        ORDER BY created_at DESC
+        LIMIT ?
+        """,
+        (limit,),
+    )
+
+    rows = [dict(row) for row in cursor.fetchall()]
+    connection.close()
+
+    return {
+        "evaluations": rows,
+        "count": len(rows),
+    }
+
+
+@app.get("/admin/models")
+def admin_models():
+    available_zones = get_available_zones()
+
+    return {
+        "models": [
+            {
+                "name": "Energy Price Regression",
+                "type": "LSTM",
+                "task": "regression",
+                "status": "production",
+                "zones": available_zones,
+            },
+            {
+                "name": "Energy Price Classification",
+                "type": "Dense Neural Network",
+                "task": "classification",
+                "status": "production",
+                "zones": available_zones,
+            },
+        ]
     }
