@@ -12,3 +12,10 @@ train:
   epochs: 50
   batch_size: 64
   random_state: 42
+
+classification:
+  zone: "SI"
+  test_ratio: 0.2
+  random_state: 42
+  epochs: 30
+  batch_size: 32

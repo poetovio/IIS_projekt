@@ -8,8 +8,13 @@ import mlflow.tensorflow
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+import yaml
+
 from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_absolute_error, mean_squared_error
+from sklearn.metrics import (
+    mean_absolute_error,
+    mean_squared_error,
+)
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -27,17 +32,25 @@ SCALER_DIRECTORY = MODEL_DIRECTORY / "scalers"
 
 PARAMS_PATH = PROJECT_ROOT / "params.yaml"
 
+MLFLOW_TRACKING_URI = os.environ.get("MLFLOW_TRACKING_URI")
+
+if not MLFLOW_TRACKING_URI:
+    raise RuntimeError(
+        "MLFLOW_TRACKING_URI is not set."
+    )
+
+mlflow.set_tracking_uri(
+    MLFLOW_TRACKING_URI
+)
 
 with open(PARAMS_PATH, "r") as file:
-    params = __import__("yaml").safe_load(file)["train"]
-
+    params = yaml.safe_load(file)["train"]
 
 WINDOW_SIZE = params["window_size"]
 TRAIN_RATIO = params["train_ratio"]
 EPOCHS = params["epochs"]
 BATCH_SIZE = params["batch_size"]
 RANDOM_STATE = params["random_state"]
-
 
 FEATURES = [
     "price",
@@ -62,15 +75,23 @@ def create_sequences(data, window_size):
 
 
 def build_model(input_shape):
-    model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=input_shape),
-        tf.keras.layers.LSTM(64, return_sequences=True),
-        tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.LSTM(32),
-        tf.keras.layers.Dropout(0.2),
-        tf.keras.layers.Dense(16, activation="relu"),
-        tf.keras.layers.Dense(1),
-    ])
+    model = tf.keras.Sequential(
+        [
+            tf.keras.layers.Input(shape=input_shape),
+            tf.keras.layers.LSTM(
+                64,
+                return_sequences=True,
+            ),
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.LSTM(32),
+            tf.keras.layers.Dropout(0.2),
+            tf.keras.layers.Dense(
+                16,
+                activation="relu",
+            ),
+            tf.keras.layers.Dense(1),
+        ]
+    )
 
     model.compile(
         optimizer=tf.keras.optimizers.Adam(
@@ -87,7 +108,9 @@ def train_model(file_path):
     zone = file_path.stem
 
     print()
+    print("=" * 60)
     print(f"Training model for {zone}...")
+    print("=" * 60)
 
     os.environ["PYTHONHASHSEED"] = str(RANDOM_STATE)
 
@@ -100,9 +123,10 @@ def train_model(file_path):
         parse_dates=["datetime_utc"],
     )
 
-    df = df.sort_values(
-        "datetime_utc"
-    ).reset_index(drop=True)
+    df = (
+        df.sort_values("datetime_utc")
+        .reset_index(drop=True)
+    )
 
     df["is_weekend"] = df["is_weekend"].astype(int)
 
@@ -143,13 +167,8 @@ def train_model(file_path):
         WINDOW_SIZE,
     )
 
-    print(
-        f"X_train shape: {X_train.shape}"
-    )
-
-    print(
-        f"X_test shape: {X_test.shape}"
-    )
+    print(f"X_train shape: {X_train.shape}")
+    print(f"X_test shape: {X_test.shape}")
 
     mlflow.set_experiment(
         "Energy_Price_Training"
@@ -159,39 +178,28 @@ def train_model(file_path):
         run_name=f"train_{zone}"
     ):
 
-        mlflow.log_param(
-            "zone",
-            zone,
+        mlflow.tensorflow.autolog(
+            log_models=False
         )
 
-        mlflow.log_param(
-            "window_size",
-            WINDOW_SIZE,
-        )
-
-        mlflow.log_param(
-            "train_ratio",
-            TRAIN_RATIO,
-        )
-
-        mlflow.log_param(
-            "epochs",
-            EPOCHS,
-        )
-
-        mlflow.log_param(
-            "batch_size",
-            BATCH_SIZE,
-        )
-
-        mlflow.log_param(
-            "random_state",
-            RANDOM_STATE,
-        )
-
-        mlflow.log_param(
-            "features",
-            ",".join(FEATURES),
+        mlflow.log_params(
+            {
+                "zone": zone,
+                "window_size": WINDOW_SIZE,
+                "train_ratio": TRAIN_RATIO,
+                "epochs": EPOCHS,
+                "batch_size": BATCH_SIZE,
+                "random_state": RANDOM_STATE,
+                "features": ",".join(FEATURES),
+                "model_type": "LSTM",
+                "optimizer": "Adam",
+                "learning_rate": 0.001,
+                "lstm_units_1": 64,
+                "lstm_units_2": 32,
+                "total_rows": len(data),
+                "training_rows": len(train_data),
+                "testing_rows": len(test_data),
+            }
         )
 
         model = build_model(
@@ -201,16 +209,10 @@ def train_model(file_path):
             )
         )
 
-        early_stopping = (
-            tf.keras.callbacks.EarlyStopping(
-                monitor="val_loss",
-                patience=5,
-                restore_best_weights=True,
-            )
-        )
-
-        mlflow.tensorflow.autolog(
-            log_models=False
+        early_stopping = tf.keras.callbacks.EarlyStopping(
+            monitor="val_loss",
+            patience=5,
+            restore_best_weights=True,
         )
 
         model.fit(
@@ -224,48 +226,76 @@ def train_model(file_path):
             shuffle=False,
         )
 
-        y_pred = model.predict(
+        y_pred_scaled = model.predict(
             X_test,
             verbose=0,
+        ).reshape(-1, 1)
+
+        y_test_scaled = y_test.reshape(-1, 1)
+
+        zeros_test = np.zeros(
+            (
+                len(y_test_scaled),
+                len(FEATURES) - 1,
+            )
         )
 
+        zeros_pred = np.zeros(
+            (
+                len(y_pred_scaled),
+                len(FEATURES) - 1,
+            )
+        )
+
+        y_test_original = scaler.inverse_transform(
+            np.concatenate(
+                [
+                    y_test_scaled,
+                    zeros_test,
+                ],
+                axis=1,
+            )
+        )[:, 0]
+
+        y_pred_original = scaler.inverse_transform(
+            np.concatenate(
+                [
+                    y_pred_scaled,
+                    zeros_pred,
+                ],
+                axis=1,
+            )
+        )[:, 0]
+
         mae = mean_absolute_error(
-            y_test,
-            y_pred,
+            y_test_original,
+            y_pred_original,
         )
 
         mse = mean_squared_error(
-            y_test,
-            y_pred,
+            y_test_original,
+            y_pred_original,
         )
 
         rmse = np.sqrt(mse)
 
-        print(
-            f"Test MAE: {mae:.6f}"
-        )
-
-        print(
-            f"Test MSE: {mse:.6f}"
-        )
-
-        print(
-            f"Test RMSE: {rmse:.6f}"
-        )
+        print(f"Test MAE: {mae:.6f} EUR/MWh")
+        print(f"Test MSE: {mse:.6f}")
+        print(f"Test RMSE: {rmse:.6f} EUR/MWh")
 
         mlflow.log_metric(
-            "test_mae",
-            mae,
+            "test_mae_eur_mwh",
+            float(mae),
         )
 
         mlflow.log_metric(
             "test_mse",
-            mse,
+            float(mse),
         )
 
         mlflow.log_metric(
-            "test_rmse",
-            rmse,
+            "test_rmse_eur_mwh",
+            float(rmse),
         )
 
         MODEL_DIRECTORY.mkdir(
@@ -309,12 +339,11 @@ def train_model(file_path):
             artifact_path="scalers",
         )
 
+        print(f"Model saved: {model_path}")
+        print(f"Scaler saved: {scaler_path}")
         print(
-            f"Model saved: {model_path}"
-        )
-
-        print(
-            f"Scaler saved: {scaler_path}"
+            f"MLflow run ID: "
+            f"{mlflow.active_run().info.run_id}"
         )
 
 
@@ -331,7 +360,6 @@ def main():
         print(
             "ERROR: No energy price files found."
         )
-
         return 1
 
     for file_path in files:

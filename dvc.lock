@@ -123,24 +123,45 @@ stages:
       md5: 38acc49edbc8570cf1f1a99cb68c7919.dir
       size: 43882515
       nfiles: 37
-    - path: gx/uncommitted
-      hash: md5
-      md5: 8f22e286a28b8c154de6c1807da95eb9.dir
-      size: 4557983
-      nfiles: 36
     - path: src/train.py
       hash: md5
-      md5: cf9de6b5107842c64b38f2d3bc575344
-      size: 3999
+      md5: 161b34066c19f964af807c117cd5ad50
+      size: 7866
     params:
       params.yaml:
         train.batch_size: 64
         train.epochs: 50
+        train.random_state: 42
         train.train_ratio: 0.8
         train.window_size: 24
     outs:
-    - path: models
+    - path: models/regression
       hash: md5
       md5: 8837a95b587ba907bbcc67c661f7cba4.dir
       size: 15523685
       nfiles: 74
+  train_classification:
+    cmd: uv run python src/train_classifier.py
+    deps:
+    - path: data/processed/electricity/prices
+      hash: md5
+      md5: 38acc49edbc8570cf1f1a99cb68c7919.dir
+      size: 43882515
+      nfiles: 37
+    - path: src/train_classifier.py
+      hash: md5
+      md5: aa26a0febcd533c69890a49938d3084c
+      size: 6836
+    params:
+      params.yaml:
+        classification.batch_size: 32
+        classification.epochs: 30
+        classification.random_state: 42
+        classification.test_ratio: 0.2
+        classification.zone: SI
+    outs:
+    - path: models/classification
+      hash: md5
+      md5: 4db037c91fe6611eab623d796bd3204e.dir
+      size: 62737
+      nfiles: 2

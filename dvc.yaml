@@ -48,10 +48,26 @@ stages:
       - data/processed/electricity/prices
       - data/reference/electricity/prices
     params:
-      - train.test_size
+      - train.train_ratio
       - train.random_state
       - train.window_size
-      - train.target_col
+      - train.epochs
+      - train.batch_size
     outs:
-      - models:
+      - models/regression:
+          persist: true
+
+  train_classification:
+    cmd: uv run python src/train_classifier.py
+    deps:
+      - src/train_classifier.py
+      - data/processed/electricity/prices
+    params:
+      - classification.zone
+      - classification.test_ratio
+      - classification.random_state
+      - classification.epochs
+      - classification.batch_size
+    outs:
+      - models/classification:
           persist: true
